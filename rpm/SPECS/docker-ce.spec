@@ -18,24 +18,38 @@ Packager: Docker <support@docker.com>
 Requires: /usr/sbin/groupadd
 Requires: docker-ce-cli
 Requires: docker-ce-rootless-extras
+%if 0%{?suse_version}
+Requires: container-selinux
+Requires: libseccomp2
+Requires: libcgroup-devel
+%else
 Requires: container-selinux >= 2:2.74
 Requires: libseccomp >= 2.3
+Requires: libcgroup
+%endif
 Requires: systemd
 Requires: iptables
-Requires: libcgroup
 Requires: containerd.io >= 1.4.1
 Requires: tar
 Requires: xz
 
 BuildRequires: bash
+%if 0%{?suse_version}
+BuildRequires: btrfsprogs
+%else
 %{?_with_btrfs:BuildRequires: btrfs-progs-devel}
+%endif
 BuildRequires: ca-certificates
 BuildRequires: cmake
 BuildRequires: device-mapper-devel
 BuildRequires: gcc
 BuildRequires: git
 BuildRequires: glibc-static
+%if 0%{?suse_version}
+BuildRequires: libarchive13
+%else
 BuildRequires: libarchive
+%endif
 BuildRequires: libseccomp-devel
 BuildRequires: libselinux-devel
 BuildRequires: libtool
