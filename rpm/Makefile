@@ -10,7 +10,7 @@ ENGINE_GITCOMMIT?=$(shell cd $(realpath $(CURDIR)/../src/github.com/docker/docke
 SCAN_GITCOMMIT?=$(shell cd $(realpath $(CURDIR)/../src/github.com/docker/scan-cli-plugin) && git rev-parse --short HEAD)
 
 ifdef BUILD_IMAGE
-	BUILD_IMAGE_FLAG=--build-arg $(BUILD_IMAGE)
+	BUILD_IMAGE_FLAG=--build-arg BUILD_IMAGE=$(BUILD_IMAGE)
 endif
 BUILD?=DOCKER_BUILDKIT=1 \
 	docker build \
@@ -50,15 +50,26 @@ RUN?=docker run --rm \
 	$(RUN_FLAGS) \
 	rpmbuild-$@/$(ARCH) $(RPMBUILD_FLAGS)
 
+RUN_SLES?=docker run --rm \
+	-e PLATFORM \
+	-v $(CURDIR)/rpmbuild/SOURCES:/usr/src/packages/SOURCES:ro \
+	-v $(CURDIR)/rpmbuild/$@/RPMS:/usr/src/packages/RPMS \
+	-v $(CURDIR)/rpmbuild/$@/SRPMS:/usr/src/packages/SRPMS \
+	$(RUN_FLAGS) \
+	rpmbuild-$@/$(ARCH) $(RPMBUILD_FLAGS)
+	
 FEDORA_RELEASES ?= fedora-34 fedora-33
 CENTOS_RELEASES ?= centos-7 centos-8
 ifeq ($(ARCH),s390x)
-RHEL_RELEASES ?= rhel-7
+RHEL_RELEASES ?= rhel-7 rhel-8
+SLES_RELEASES ?= sles-15
 else
 RHEL_RELEASES ?=
+SLES_RELEASES ?=
 endif
 
-DISTROS := $(FEDORA_RELEASES) $(CENTOS_RELEASES) $(RHEL_RELEASES)
+
+DISTROS := $(FEDORA_RELEASES) $(CENTOS_RELEASES) $(RHEL_RELEASES) 
 BUNDLES := $(patsubst %,rpmbuild/bundles-ce-%-$(DPKG_ARCH).tar.gz,$(DISTROS))
 
 .PHONY: help
@@ -72,7 +83,7 @@ clean: ## remove build artifacts
 	-docker builder prune -f --filter until=24h
 
 .PHONY: rpm
-rpm: fedora centos ## build all rpm packages
+rpm: fedora centos rhel sles ## build all rpm packages
 
 .PHONY: fedora
 fedora: $(FEDORA_RELEASES) ## build all fedora rpm packages
@@ -83,8 +94,14 @@ centos-8: RPMBUILD_EXTRA_FLAGS=--define '_without_btrfs 1'
 .PHONY: centos
 centos: $(CENTOS_RELEASES) ## build all centos rpm packages
 
+.PHONY: rhel-8
+rhel-8: RPMBUILD_EXTRA_FLAGS=--define '_without_btrfs 1'
+
 .PHONY: rhel
 rhel: $(RHEL_RELEASES) ## build all rhel rpm packages
+
+.PHONY: sles
+sles: $(SLES_RELEASES) ## build all sles rpm packages
 
 .PHONY: $(DISTROS)
 $(DISTROS): rpmbuild/SOURCES/engine.tgz rpmbuild/SOURCES/cli.tgz rpmbuild/SOURCES/scan-cli-plugin.tgz rpmbuild/SOURCES/plugin-installers.tgz
@@ -92,6 +109,14 @@ $(DISTROS): rpmbuild/SOURCES/engine.tgz rpmbuild/SOURCES/cli.tgz rpmbuild/SOURCE
 	mkdir -p "rpmbuild/$@"
 	$(BUILD)
 	$(RUN)
+	$(CHOWN) -R $(shell id -u):$(shell id -g) "rpmbuild/$@"
+
+.PHONY: $(SLES_RELEASES)
+$(SLES_RELEASES): rpmbuild/SOURCES/engine.tgz rpmbuild/SOURCES/cli.tgz rpmbuild/SOURCES/scan-cli-plugin.tgz rpmbuild/SOURCES/plugin-installers.tgz
+	@echo "== Building packages for $@ =="
+	mkdir -p "rpmbuild/$@"
+	$(BUILD)
+	$(RUN_SLES)
 	$(CHOWN) -R $(shell id -u):$(shell id -g) "rpmbuild/$@"
 
 rpmbuild/SOURCES/engine.tgz:
