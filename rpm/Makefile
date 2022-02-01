@@ -58,7 +58,7 @@ RUN_SLES?=docker run --rm \
 	$(RUN_FLAGS) \
 	rpmbuild-$@/$(ARCH) $(RPMBUILD_FLAGS)
 	
-FEDORA_RELEASES ?= fedora-34 fedora-33
+FEDORA_RELEASES ?= fedora-35 fedora-34 fedora-33
 CENTOS_RELEASES ?= centos-7 centos-8
 ifeq ($(ARCH),s390x)
 RHEL_RELEASES ?= rhel-7 rhel-8
@@ -69,7 +69,8 @@ SLES_RELEASES ?=
 endif
 
 
-DISTROS := $(FEDORA_RELEASES) $(CENTOS_RELEASES) $(RHEL_RELEASES) 
+DISTROS := $(FEDORA_RELEASES) $(CENTOS_RELEASES) $(RHEL_RELEASES)
+
 BUNDLES := $(patsubst %,rpmbuild/bundles-ce-%-$(DPKG_ARCH).tar.gz,$(DISTROS))
 
 .PHONY: help
